@@ -1,55 +1,80 @@
 # opencode-lmstudio-sync
 
-An opencode plugin to sync the model list from lmstudio and inject them at run time in opencode, which you can access using the `/models` command. 
+An opencode plugin that syncs your LM Studio model list at startup and injects them as chat-capable providers with rich metadata (quantization, params, architecture family, vision support).
 
-## usage
+## Setup
 
-> [!IMPORTANT]
-> Your LMStudio API server must be running for this to work!
-> e.g. at http://127.0.0.1:1234
+No build step required — opencode loads TypeScript plugins directly.
+
+### 1. Install the plugin file into opencode's global plugin directory
 
 ```bash
-# clone the repo
-git clone https://github.com/rashomon-gh/opencode-lmstudio-sync.git
-cd opencode-lmstudio-sync
+# Copy:
+cp lmstudio-sync.ts ~/.config/opencode/plugins/lmstudio-sync.ts
 
-# then copy the plugin file to your opencode config directory
-cp ./lmstudio-sync.ts ~/.config/opencode/plugins/lmstudio-sync.ts
+# Or symlink:
+ln -sf "$(pwd)/lmstudio-sync.ts" ~/.config/opencode/plugins/lmstudio-sync.ts
 ```
 
-Then add the following to your opencode config file (`~/.config/opencode/opencode.json`).
+### 2. Register the plugin in `~/.config/opencode/opencode.jsonc`
 
-```json
+Add `"./plugins/lmstudio-sync.ts"` to your `plugin` array:
+
+```jsonc
 {
-    ...
-    "plugin": ["./plugins/lmstudio-sync.ts"],
-     "provider": {
-        "lmstudio": {
-        "npm": "@ai-sdk/openai-compatible",
-        "name": "LM Studio (local)",
-        "options": {
-            "baseURL": "http://127.0.0.1:1234/v1"
-        }
-    },
-    ...
-    // any other providers you may have
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "./plugins/lmstudio-sync.ts"
+  ],
+  ...
 }
 ```
 
-An example `opencode.json` file using only lmstudio endpoints:
+### 3. Mark an LM Studio provider with `isLMStudio: true`
 
-```json
+Add the `isLMStudio: true` flag to any provider whose models you want synced. The plugin will query both the native `/api/v1/models` endpoint and the OpenAI-compatible `/v1/models` endpoint, merge the metadata, and populate that provider's model list automatically.
+
+```jsonc
 {
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["./plugins/lmstudio-sync.ts"],
   "provider": {
-    "lmstudio": {
+    "lmstudio-local": {
+      "isLMStudio": true,
       "npm": "@ai-sdk/openai-compatible",
-      "name": "LM Studio (local)",
+      "name": "LM Studio Local",
       "options": {
-        "baseURL": "http://127.0.0.1:1234/v1"
+        "baseURL": "http://127.0.0.1:1234/v1",
+        "apiKey": "{env:LMSTUDIO_API_KEY}"
       }
     }
   }
 }
 ```
+
+**Key points:**
+
+- Only providers with `isLMStudio: true` are scanned — other providers are left untouched, even if they share the same base URL.
+- Manually defined models (entries already in `provider.models`) are never overwritten by auto-discovery.
+- Embedding-only models are excluded from the chat-capable model list.
+
+### 4. Restart opencode
+
+The plugin runs during config initialization. Restart your opencode session for changes to take effect.
+
+## How it works
+
+On startup, each `isLMStudio` provider triggers:
+
+1. **Native API fetch** — queries `/api/v1/models` for metadata (`display_name`, `quantization`, `architecture`, `params_string`, `size_bytes`, `capabilities`).
+2. **OpenAI-compatible fetch** — queries `/v1/models` for the model IDs and capabilities.
+3. **Merge & build friendly names** — combines both sources, generates human-readable display names in the format:
+
+   ```
+   [Uncensored] [ParamsNum] [Vision] [Quant] [SizeGB] [Architecture] [Publisher] [ModelName]
+   ```
+
+4. **Inject into provider config** — discovered models are added to `provider.models` (skipping any already manually defined).
+
+## Requirements
+
+- LM Studio API server must be running and reachable at the configured base URL.
+- If your LM Studio instance uses authentication, set `options.apiKey` or export `LMSTUDIO_API_KEY`.
