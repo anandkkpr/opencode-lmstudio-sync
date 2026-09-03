@@ -320,9 +320,7 @@ export const LMStudioSyncPlugin: Plugin = async ({ client }) => {
 
         // ── b. Fetch native metadata for rich info (display_name, quant, architecture, etc.)
         const bearerAuth = p.options?.apiKey || process.env.LMSTUDIO_API_KEY
-
-        await client.app.log({ body: { service: "lmstudio-sync", level: "debug", message: `API KEY "${p.options?.apiKey}"` } })
-
+        
         const authHeader = bearerAuth ? { "Authorization": `Bearer ${bearerAuth}` } : {}
 
         let nativeModels: NativeLMSModel[] | undefined
