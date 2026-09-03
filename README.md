@@ -82,7 +82,7 @@ On startup, each `isLMStudio` provider triggers:
 3. **Merge & build friendly names** — combines both sources, generates human-readable display names in the format:
 
    ```
-   [AbliterationType] [ParamsNum] [Vision] [Quant] [SizeGB] [Architecture] [Publisher] [ModelName]
+   [AbliterationType] [ParamsNum] [VisionCapable] [Quant] [SizeGB] [Architecture] [Publisher] [ModelName]
    ```
 
 4. **Inject into provider config** — discovered models are added to `provider.models` (skipping any already manually defined).
