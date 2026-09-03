@@ -50,12 +50,17 @@ interface ModelEntry {
 }
 
 interface ProviderConfig {
-  isLMStudio?: boolean
-  npm?:        string
-  name?:       string
-  options?:    { baseURL?: string; apiKey?: string; headers?: Record<string, string>; [key: string]: unknown }
-  models?:     Record<string, ModelEntry>
-  [key: string]: unknown
+  npm?: string;
+  name?: string;
+  options?: { 
+    isLMStudio?: boolean;
+    baseURL?: string;
+    apiKey?: string;
+    headers?: Record<string, string>;
+    [key: string]: unknown; 
+  }
+  models?: Record<string, ModelEntry>;
+  [key: string]: unknown;
 }
 
 interface OpenCodeConfig {
@@ -270,14 +275,14 @@ function buildFriendlyName(m: NativeLMSModel): string {
 export const LMStudioSyncPlugin: Plugin = async ({ client }) => {
   return {
     config: async (config: OpenCodeConfig) => {
-      // ── 1. Find all providers marked with isLMStudio ─────────────────
+      // ── 1. Find all providers marked with options.isLMStudio ─────────────────
       if (!config.provider) return
 
       let totalAdded = 0
       let totalScanned = 0
 
       for (const [providerKey, provider] of Object.entries(config.provider)) {
-        if ((provider as ProviderConfig)?.isLMStudio !== true) continue
+        if ((provider as ProviderConfig)?.options.isLMStudio !== true) continue
 
         const p = provider as ProviderConfig
         totalScanned++
@@ -315,6 +320,9 @@ export const LMStudioSyncPlugin: Plugin = async ({ client }) => {
 
         // ── b. Fetch native metadata for rich info (display_name, quant, architecture, etc.)
         const bearerAuth = p.options?.apiKey || process.env.LMSTUDIO_API_KEY
+
+        await client.app.log({ body: { service: "lmstudio-sync", level: "debug", message: `API KEY "${p.options?.apiKey}"` } })
+
         const authHeader = bearerAuth ? { "Authorization": `Bearer ${bearerAuth}` } : {}
 
         let nativeModels: NativeLMSModel[] | undefined
